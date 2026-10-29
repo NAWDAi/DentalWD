@@ -1,199 +1,148 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const root = document.documentElement;
+  const save = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+  /* ---------- display settings ---------- */
+  let size = +(root.dataset.size || 0);
+  const setSize = n => { size = Math.max(0, Math.min(2, n)); root.dataset.size = size; save('cw-size', size); $('#smaller').disabled = size === 0; $('#larger').disabled = size === 2; };
+  $('#smaller').onclick = () => setSize(size - 1);
+  $('#larger').onclick = () => setSize(size + 1);
+  setSize(size);
+  const cBtn = $('#contrast');
+  const setContrast = on => { on ? root.dataset.contrast = 'high' : root.removeAttribute('data-contrast'); cBtn.setAttribute('aria-pressed', on); save('cw-contrast', on ? 'high' : 'normal'); };
+  cBtn.onclick = () => setContrast(root.dataset.contrast !== 'high');
+  cBtn.setAttribute('aria-pressed', root.dataset.contrast === 'high');
 
   /* ---------- data ---------- */
-  const SERVICES = [
-    { id: 'Dental check-up & X-ray', cat: 'general', ic: '🦷', t: 'Check-up & digital X-ray', d: 'Full exam of teeth, gums, bite and oral tissues. X-rays only when clinically justified.', m: ['30 min', 'From ₹500'] },
-    { id: 'Scaling & polishing', cat: 'general', ic: '✨', t: 'Scaling & polishing', d: 'Removes plaque and tartar that brushing cannot, helping prevent gum disease and bad breath.', m: ['45 min', 'From ₹1,200'] },
-    { id: "Children's dentistry", cat: 'general', ic: '🧸', t: "Children's dentistry", d: 'Gentle check-ups, fluoride varnish, sealants and habit advice for ages 2 and up.', m: ['30 min', 'From ₹600'] },
-    { id: 'Tooth-coloured filling', cat: 'restore', ic: '🪥', t: 'Tooth-coloured fillings', d: 'Composite resin restores cavities and chipped teeth, matched to your natural shade.', m: ['45 min', 'From ₹1,500'] },
-    { id: 'Root canal treatment', cat: 'restore', ic: '🩺', t: 'Root canal treatment', d: 'Removes infected pulp to save a tooth and relieve pain, usually followed by a crown.', m: ['1 to 2 visits', 'From ₹5,500'] },
-    { id: 'Crown or bridge', cat: 'restore', ic: '👑', t: 'Crowns & bridges', d: 'Zirconia and porcelain-fused options that restore strength, shape and appearance.', m: ['2 visits', 'From ₹7,000'] },
-    { id: 'Dental implant', cat: 'restore', ic: '🔩', t: 'Dental implants', d: 'A titanium post replaces the root of a missing tooth. Needs adequate bone and healthy gums.', m: ['3 to 6 months', 'From ₹32,000'] },
-    { id: 'Teeth whitening', cat: 'cosmetic', ic: '😁', t: 'Professional whitening', d: 'Supervised in-clinic whitening for a brighter smile in about an hour.', m: ['60 min', 'From ₹6,000'] },
-    { id: 'Clear aligners / braces', cat: 'cosmetic', ic: '📐', t: 'Clear aligners & braces', d: 'Straighten crowded or spaced teeth with removable aligners or traditional braces.', m: ['6 to 18 months', 'From ₹45,000'] }
+  const SYMPTOMS = [
+    { k: 'Cold or hot sensitivity', urgent: false, when: 'Book this week', visit: 'Check-up',
+      means: 'Often worn enamel, receding gums or early decay exposing the softer layer under the enamel.',
+      meanwhile: 'Use a soft brush and a toothpaste for sensitive teeth, and avoid very cold or hot drinks for now.' },
+    { k: 'Bleeding gums', urgent: false, when: 'Book within two weeks', visit: 'Scaling and polishing',
+      means: 'Usually plaque along the gum line causing gingivitis, which is reversible with a professional clean and good daily cleaning.',
+      meanwhile: 'Keep brushing gently twice a day and clean between teeth. Do not stop because it bleeds. Heavy bleeding, swelling or loose teeth need faster review.' },
+    { k: 'Throbbing toothache', urgent: true, when: 'Be seen within 24 hours', visit: 'Emergency exam and X-ray',
+      means: 'Pain that throbs or wakes you at night can mean deep decay or an infected nerve, which may need a root canal.',
+      meanwhile: 'A standard over-the-counter pain reliever taken as directed on the pack can help. Do not place aspirin on the gum. Facial swelling or fever means call us now.' },
+    { k: 'Chipped or broken tooth', urgent: true, when: 'Book this week, same day if painful', visit: 'Repair (bonding, filling or crown)',
+      means: 'Small chips can be smoothed or bonded. Larger breaks may need a filling or a crown to protect the tooth.',
+      meanwhile: 'Rinse gently, keep any fragment in milk, and cover a sharp edge with sugar-free gum or dental wax.' },
+    { k: 'Bad breath', urgent: false, when: 'Book within a few weeks', visit: 'Check-up and cleaning',
+      means: 'Most often plaque on teeth and the tongue, or gum disease. Dry mouth and some foods or medicines can also cause it.',
+      meanwhile: 'Brush the tongue lightly, clean between teeth and drink water through the day.' },
+    { k: 'Crooked or gapped teeth', urgent: false, when: 'Whenever you are ready', visit: 'Aligner or braces consultation',
+      means: 'Teeth can be moved with clear aligners or braces, and small gaps or edges can sometimes be bonded.',
+      meanwhile: 'Nothing is urgent. A consultation shows the options, timing and cost.' },
+    { k: 'A missing tooth', urgent: false, when: 'Book within a month', visit: 'Implant or bridge consultation',
+      means: 'Gaps let neighbouring teeth drift. Options include an implant, a bridge or a denture, depending on your bone and gums.',
+      meanwhile: 'Keep the area clean. An X-ray at the consultation shows which option suits you.' }
   ];
-  const REVIEWS = [
-    ['I have been nervous about dentists since childhood. Everything was explained, I was never rushed, and I felt nothing during the filling.', 'Meera K.', 'Sample patient · Filling'],
-    ['The written estimate before my root canal meant no surprises. Follow-up call the next day to check on me was a lovely touch.', 'Rohan S.', 'Sample patient · Root canal'],
-    ['My daughter actually asks when her next visit is. The team made her first check-up feel like a game.', 'Priya & Aanya', 'Sample family · Little Smiles'],
-    ['Clear aligners were planned with a simulation first, so I knew the end result before starting. Eight months in, I am delighted.', 'Kabir D.', 'Sample patient · Aligners']
+  const CARE = [
+    { k: 'Check-up and X-ray', d: 'A full look at teeth, gums, bite and soft tissues. X-rays only when they will change the plan.', t: '30 minutes', f: 'from 500' },
+    { k: 'Scaling and polishing', d: 'Removes plaque and tartar that brushing cannot reach, to protect your gums.', t: '45 minutes', f: 'from 1,200' },
+    { k: 'Fillings', d: 'Tooth-coloured composite repairs a cavity and matches the tooth around it.', t: '45 minutes', f: 'from 1,500' },
+    { k: 'Root canal treatment', d: 'Clears infection from inside a tooth so it can be kept. Usually finished with a crown.', t: '1 to 2 visits', f: 'from 5,500' },
+    { k: 'Crowns and bridges', d: 'Strong caps and fixed bridges that restore a damaged or missing tooth.', t: '2 visits', f: 'from 7,000' },
+    { k: 'Dental implants', d: 'A titanium post replaces a missing root and carries a crown. Needs enough healthy bone.', t: '3 to 6 months', f: 'from 32,000' },
+    { k: 'Aligners and braces', d: 'Straighten teeth gradually with removable aligners or fixed braces.', t: '6 to 18 months', f: 'from 45,000' },
+    { k: 'Whitening', d: 'Supervised whitening after we check that your teeth and gums are healthy.', t: '60 minutes', f: 'from 6,000' },
+    { k: "Children's dentistry", d: 'Gentle check-ups, fluoride varnish and sealants for ages two and up.', t: '30 minutes', f: 'from 600' }
   ];
-  const FAQS = [
-    ['How often should I visit the dentist?', 'Most adults benefit from a check-up and cleaning every six months. If you have gum disease, diabetes or a high cavity risk, we may suggest every three to four months.'],
-    ['Is a root canal painful?', 'With modern local anaesthesia the procedure feels similar to having a filling. Most of the pain people associate with root canals comes from the infection, which the treatment relieves.'],
-    ['Are dental X-rays safe?', 'Digital dental X-rays use a very low dose, comparable to a few days of natural background radiation. We only take them when they will change your diagnosis or treatment, and we use protective shielding.'],
-    ['How long does teeth whitening last?', 'Typically one to three years depending on diet and habits such as tea, coffee, red wine and smoking. Touch-up trays can extend results.'],
-    ['When can my child first see a dentist?', 'Ideally by their first birthday or when the first tooth appears. Early visits are short and mainly help children become comfortable.'],
-    ['What should I do if a tooth is knocked out?', 'Pick it up by the crown, not the root. Rinse gently with milk or saline, do not scrub, and try placing it back in the socket or keep it in milk. Call us immediately; the first 30 to 60 minutes matter most.'],
-    ['Do you offer payment options?', 'Yes. We accept cash, UPI and cards, and can split larger treatment into stages. Details are shared in your written estimate.']
-  ];
+  const REASONS = ['Check-up and cleaning', 'Toothache or pain', 'Broken or chipped tooth', 'Filling or repair', 'Whitening', 'Aligners or braces', 'Missing tooth', 'Child check-up', 'Not sure'];
 
-  /* ---------- nav ---------- */
-  const nav = $('#nav'), burger = $('#burger'), menu = $('#menu'), fb = $('.float-book');
-  addEventListener('scroll', () => {
-    nav.classList.toggle('stuck', scrollY > 10);
-    fb.classList.toggle('show', scrollY > 700);
-  }, { passive: true });
-  burger.addEventListener('click', () => {
-    const o = menu.classList.toggle('open');
-    burger.setAttribute('aria-expanded', o);
+  /* ---------- symptom guide ---------- */
+  const chips = $('#chips'), result = $('#result');
+  chips.innerHTML = SYMPTOMS.map((s, i) => `<button type="button" class="chip" aria-pressed="false" data-i="${i}">${s.k}</button>`).join('');
+  chips.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const s = SYMPTOMS[+b.dataset.i];
+    $$('.chip', chips).forEach(c => c.setAttribute('aria-pressed', c === b));
+    result.hidden = false;
+    result.innerHTML = `<h3>${s.k}</h3><span class="tag ${s.urgent ? 'tag--urgent' : ''}">${s.when}</span>
+      <dl><div><dt>What it often means</dt><dd>${s.means}</dd></div><div><dt>Until your visit</dt><dd>${s.meanwhile}</dd></div><div><dt>Suggested visit</dt><dd>${s.visit}</dd></div></dl>
+      <a class="btn btn--primary" href="#book" data-reason="${s.urgent ? 'Toothache or pain' : 'Check-up and cleaning'}">Book this visit</a>`;
   });
-  $$('#menu a').forEach(a => a.addEventListener('click', () => { menu.classList.remove('open'); burger.setAttribute('aria-expanded', false); }));
-  const secs = $$('main section[id]');
-  const spy = new IntersectionObserver(es => es.forEach(e => {
-    if (e.isIntersecting) $$('#menu a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id));
-  }), { rootMargin: '-45% 0px -50% 0px' });
-  secs.forEach(s => spy.observe(s));
-  $('#yr').textContent = new Date().getFullYear();
+  result.addEventListener('click', e => { const a = e.target.closest('[data-reason]'); if (a) { const r = $$('input[name=reason]').find(x => x.value === a.dataset.reason); if (r) r.checked = true; } });
 
-  /* ---------- reveal + counters ---------- */
-  const countUp = el => {
-    const end = +el.dataset.count, suf = el.dataset.suffix || '', t0 = performance.now();
-    const step = t => {
-      const p = Math.min((t - t0) / 1400, 1), v = Math.round(end * (1 - Math.pow(1 - p, 3)));
-      el.textContent = v.toLocaleString('en-IN') + suf;
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
-  const io = new IntersectionObserver(es => es.forEach(e => {
-    if (!e.isIntersecting) return;
-    e.target.classList.add('in');
-    $$('[data-count]', e.target).forEach(countUp);
-    io.unobserve(e.target);
-  }), { threshold: .15 });
-  $$('.reveal').forEach(el => io.observe(el));
-  $$('.hero-points [data-count]').forEach(countUp);
+  /* ---------- treatments ---------- */
+  $('#acc').innerHTML = CARE.map(c => `<details><summary>${c.k}<svg class="ico" aria-hidden="true"><use href="#i-down"/></svg></summary><div class="body"><p>${c.d}</p><div class="meta"><span>Takes ${c.t}</span><span>Sample fee ${c.f} rupees</span></div></div></details>`).join('');
+  $$('#acc details').forEach(d => d.addEventListener('toggle', () => { if (d.open) $$('#acc details').forEach(o => o !== d && (o.open = false)); }));
 
-  /* ---------- services ---------- */
-  const cards = $('#cards');
-  const renderCards = cat => {
-    cards.innerHTML = SERVICES.filter(s => cat === 'all' || s.cat === cat).map((s, i) => `
-      <article class="card" style="animation-delay:${i * 50}ms">
-        <div class="ic" aria-hidden="true">${s.ic}</div>
-        <h3>${s.t}</h3><p>${s.d}</p>
-        <div class="meta"><span>${s.m[0]}</span><span>${s.m[1]}</span></div>
-        <button data-service="${s.id}">Book this treatment →</button>
-      </article>`).join('');
-  };
-  renderCards('all');
-  $$('.tabs button').forEach(b => b.addEventListener('click', () => {
-    $$('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
-    renderCards(b.dataset.tab);
-  }));
-  cards.addEventListener('click', e => {
-    const b = e.target.closest('[data-service]');
-    if (!b) return;
-    serviceSel.value = b.dataset.service;
-    $('#book').scrollIntoView({ behavior: 'smooth' });
-  });
-  $$('[data-plan]').forEach(a => a.addEventListener('click', () => { planNote = a.dataset.plan; }));
-  let planNote = '';
+  /* ---------- booking stepper ---------- */
+  const form = $('#form'), errs = $('#errs'), stepsEl = $$('#steps li'), fsets = $$('fieldset[data-step]');
+  const back = $('#back'), next = $('#next'), dateIn = $('#date'), times = $('#times');
+  let step = 1, saved = false;
+  $('#reasons').innerHTML = REASONS.map((r, i) => `<label class="opt"><input type="radio" name="reason" value="${r}" ${i === 0 ? 'checked' : ''}><span>${r}</span></label>`).join('');
 
-  /* ---------- whitening slider (illustrative SVG) ---------- */
-  const mouth = tone => {
-    const [a, b] = tone;
-    let teeth = '';
-    for (let i = 0; i < 8; i++) {
-      const x = 90 + i * 40, h = i > 1 && i < 6 ? 78 : 66, y = 120 - (i > 1 && i < 6 ? 0 : -4);
-      teeth += `<rect x="${x}" y="${y}" width="36" height="${h}" rx="14" fill="url(#t${tone[2]})" stroke="rgba(0,0,0,.08)"/>`;
-    }
-    return `<defs><linearGradient id="t${tone[2]}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
-      <rect width="480" height="300" fill="#e8c8b0"/>
-      <path d="M40 150c40-70 360-70 400 0-30 90-370 90-400 0z" fill="#9c3c3c"/>
-      <path d="M60 140c60-40 300-40 360 0v20c-60-30-300-30-360 0z" fill="#e38b8b"/>
-      ${teeth}`;
-  };
-  // bottom layer = "after", top layer (clipped) = "before"
-  $$('.ba-svg')[0].innerHTML = mouth(['#ffffff', '#eaf3f1', 'a']);
-  $$('.ba-svg')[1].innerHTML = mouth(['#f1dd9a', '#d2b562', 'b']);
-  $('#baRange').addEventListener('input', e => {
-    const v = e.target.value;
-    $('.ba-top').style.clipPath = `inset(0 ${100 - v}% 0 0)`;
-    $('.ba-handle').style.left = v + '%';
-  });
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const now = new Date(), far = new Date(); far.setDate(far.getDate() + 60);
+  dateIn.min = iso(now); dateIn.max = iso(far);
+  const store = () => { try { return JSON.parse(localStorage.getItem('clearwater-bookings') || '[]'); } catch { return []; } };
+  const fmt = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-  /* ---------- reviews ---------- */
-  const track = $('#track'), dots = $('#dots');
-  track.innerHTML = REVIEWS.map(r => `<figure class="rev"><div class="st" aria-label="5 out of 5 stars">★★★★★</div><blockquote>${r[0]}</blockquote><cite><i>${r[1][0]}</i><div>${r[1]}<span>${r[2]}</span></div></cite></figure>`).join('');
-  dots.innerHTML = REVIEWS.map((_, i) => `<button aria-label="Review ${i + 1}"></button>`).join('');
-  let cur = 0, timer;
-  const go = n => {
-    cur = (n + REVIEWS.length) % REVIEWS.length;
-    track.style.transform = `translateX(-${cur * 100}%)`;
-    $$('button', dots).forEach((d, i) => d.classList.toggle('on', i === cur));
-  };
-  const auto = () => { clearInterval(timer); timer = setInterval(() => go(cur + 1), 6500); };
-  $('#prev').onclick = () => { go(cur - 1); auto(); };
-  $('#next').onclick = () => { go(cur + 1); auto(); };
-  $$('button', dots).forEach((d, i) => d.onclick = () => { go(i); auto(); });
-  go(0); auto();
-
-  /* ---------- faq ---------- */
-  $('#acc').innerHTML = FAQS.map(f => `<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join('');
-  $$('#acc details').forEach(d => d.addEventListener('toggle', () => {
-    if (d.open) $$('#acc details').forEach(o => o !== d && (o.open = false));
-  }));
-
-  /* ---------- booking ---------- */
-  const form = $('#form'), serviceSel = $('#serviceSel'), dateIn = $('#dateIn'), slotsEl = $('#slots');
-  serviceSel.innerHTML = '<option value="">Select a treatment</option>' + SERVICES.map(s => `<option>${s.id}</option>`).join('') + '<option>Not sure / consultation</option>';
-  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  const today = new Date(), max = new Date(); max.setDate(max.getDate() + 60);
-  dateIn.min = iso(today); dateIn.max = iso(max);
-  let slot = '';
-  const store = () => { try { return JSON.parse(localStorage.getItem('lumina-bookings') || '[]'); } catch { return []; } };
-  const fmt = h => { const m = h % 1 ? '30' : '00', hh = Math.floor(h), ap = hh >= 12 ? 'PM' : 'AM'; return `${((hh + 11) % 12) + 1}:${m} ${ap}`; };
-
-  const renderSlots = () => {
-    slot = ''; $('#slotErr').textContent = '';
-    if (!dateIn.value) return;
-    const d = new Date(dateIn.value + 'T00:00');
-    if (d.getDay() === 0) { slotsEl.innerHTML = '<p class="hint">Closed on Sundays except for emergencies. Please call us or pick another day.</p>'; return; }
-    const end = d.getDay() === 6 ? 16 : 19, taken = store().filter(b => b.date === dateIn.value).map(b => b.slot);
-    const now = new Date(), isToday = iso(now) === dateIn.value, nowH = now.getHours() + now.getMinutes() / 60;
+  const slots = () => {
+    if (!dateIn.value) { times.innerHTML = '<p class="help">Choose a date first.</p>'; return; }
+    const d = new Date(dateIn.value + 'T00:00'), day = d.getDay();
+    if (day === 0) { times.innerHTML = '<p class="help">Closed on Sundays except for emergencies. Please call us, or pick another day.</p>'; return; }
+    const end = day === 6 ? 14 * 60 : 18 * 60, taken = store().filter(b => b.date === dateIn.value).map(b => b.time);
+    const isToday = iso(now) === dateIn.value, nowM = now.getHours() * 60 + now.getMinutes();
     let html = '';
-    for (let h = 9; h < end; h += .5) {
-      if (h >= 13 && h < 14) continue; // lunch
-      const label = fmt(h), off = taken.includes(label) || (isToday && h <= nowH + 1) || (h * 7 + d.getDate()) % 5 === 0;
-      html += `<button type="button" class="slot" aria-pressed="false" ${off ? 'disabled' : ''}>${label}</button>`;
+    for (let m = 9 * 60; m < end; m += 30) {
+      if (day !== 6 && m >= 13 * 60 && m < 14 * 60) continue;
+      const t = fmt(m), off = taken.includes(t) || (isToday && m <= nowM + 60) || ((m / 30 + d.getDate()) % 7 === 0);
+      html += `<label class="opt"><input type="radio" name="time" value="${t}" ${off ? 'disabled' : ''}><span>${t}</span></label>`;
     }
-    slotsEl.innerHTML = html || '<p class="hint">No slots left on this day.</p>';
+    times.innerHTML = html;
   };
-  dateIn.addEventListener('change', renderSlots);
-  slotsEl.addEventListener('click', e => {
-    const b = e.target.closest('.slot'); if (!b || b.disabled) return;
-    $$('.slot', slotsEl).forEach(x => x.setAttribute('aria-pressed', x === b));
-    slot = b.textContent; $('#slotErr').textContent = '';
-  });
+  dateIn.addEventListener('change', () => { slots(); clearErr('date'); });
 
-  const setErr = (el, msg) => { el.classList.toggle('invalid', !!msg); const e = el.parentElement.querySelector('.err'); if (e) e.textContent = msg || ''; return !msg; };
+  const val = () => ({ reason: ($('input[name=reason]:checked') || {}).value, date: dateIn.value, time: ($('input[name=time]:checked') || {}).value, name: $('#name').value.trim(), phone: $('#phone').value.replace(/[\s+-]/g, ''), note: $('#note').value.trim() });
   const rules = {
-    name: v => v.trim().length < 2 ? 'Please enter your name.' : '',
-    phone: v => /^(91)?[6-9]\d{9}$/.test(v.replace(/[\s+-]/g, '')) ? '' : 'Enter a valid 10-digit mobile number.',
-    email: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : 'Enter a valid email address.',
-    service: v => v ? '' : 'Please choose a treatment.',
-    date: v => !v ? 'Please pick a date.' : ''
+    1: v => v.reason ? [] : [['reason', 'Please choose a reason for your visit.', 'reasons']],
+    2: v => { const e = []; if (!v.date) e.push(['date', 'Please choose a date.', 'date']); else if (!v.time) e.push(['time', 'Please choose a time.', 'times']); return e; },
+    3: v => { const e = []; if (v.name.length < 2) e.push(['name', 'Please enter your full name.', 'name']); if (!/^(91)?[6-9]\d{9}$/.test(v.phone)) e.push(['phone', 'Enter a 10-digit mobile number, for example 9000000000.', 'phone']); return e; }
   };
-  Object.keys(rules).forEach(k => form[k].addEventListener('blur', () => setErr(form[k], rules[k](form[k].value))));
+  const clearErr = k => { const p = $('#err-' + k); if (p) p.textContent = ''; const i = $('#' + k); if (i && i.removeAttribute) i.removeAttribute('aria-invalid'); };
+  $('#name').addEventListener('input', () => clearErr('name'));
+  $('#phone').addEventListener('input', () => clearErr('phone'));
+
+  const show = n => {
+    step = n;
+    fsets.forEach(f => f.hidden = +f.dataset.step !== n);
+    stepsEl.forEach((li, i) => { li.classList.toggle('done', i + 1 < n); i + 1 === n ? li.setAttribute('aria-current', 'step') : li.removeAttribute('aria-current'); });
+    back.hidden = n === 1;
+    next.textContent = n === 3 ? 'Save my appointment' : 'Next';
+    errs.hidden = true;
+    if (n === 3) { const v = val(); $('#review').innerHTML = `<div><dt>Reason</dt><dd>${v.reason}</dd></div><div><dt>When</dt><dd>${new Date(v.date + 'T00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${v.time}</dd></div>`; }
+    const legend = $(`fieldset[data-step="${n}"] legend`); legend.tabIndex = -1; legend.focus({ preventScroll: false });
+  };
+  back.onclick = () => show(step - 1);
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    let ok = true;
-    Object.keys(rules).forEach(k => { if (!setErr(form[k], rules[k](form[k].value))) ok = false; });
-    if (ok && !slot) { $('#slotErr').textContent = 'Please choose a time slot.'; ok = false; }
-    if (!ok) { const f = $('.invalid', form) || $('#slotErr'); f.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-    const rec = { name: form.name.value.trim(), phone: form.phone.value.trim(), email: form.email.value.trim(), service: form.service.value, date: dateIn.value, slot, note: (planNote ? `[${planNote}] ` : '') + form.note.value.trim(), at: Date.now() };
-    try { const all = store(); all.push(rec); localStorage.setItem('lumina-bookings', JSON.stringify(all)); } catch {}
-    const nice = new Date(rec.date + 'T00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-    $('#mText').textContent = `Thank you, ${rec.name.split(' ')[0]}. We have noted ${rec.service.toLowerCase()} on ${nice} at ${rec.slot}. In a live clinic our team would confirm by phone shortly.`;
-    $('#modal').hidden = false; $('#mClose').focus();
-    form.reset(); slotsEl.innerHTML = '<p class="hint">Choose a date to see times.</p>'; slot = ''; planNote = '';
+    if (saved) return;
+    const v = val(), list = rules[step](v);
+    $$('.field-err').forEach(p => p.textContent = '');
+    $$('[aria-invalid]').forEach(i => i.removeAttribute('aria-invalid'));
+    if (list.length) {
+      list.forEach(([k, msg]) => { const p = $('#err-' + k); if (p) p.textContent = msg; const i = $('#' + k); if (i && i.setAttribute) i.setAttribute('aria-invalid', 'true'); });
+      errs.hidden = false;
+      errs.innerHTML = `<h3>Please fix ${list.length === 1 ? 'this' : 'these'} before continuing</h3><ul>${list.map(([, msg, id]) => `<li><a href="#${id}">${msg}</a></li>`).join('')}</ul>`;
+      errs.focus();
+      return;
+    }
+    if (step < 3) return show(step + 1);
+    try { const all = store(); all.push({ ...v }); localStorage.setItem('clearwater-bookings', JSON.stringify(all)); } catch {}
+    saved = true;
+    const nice = new Date(v.date + 'T00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+    form.innerHTML = `<div class="done-box" tabindex="-1" id="doneBox" role="status"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><h3>Saved on this device</h3><p>${v.reason} on ${nice} at ${v.time}, for ${v.name}.</p><p class="note">This is a demo, so nothing has been sent to the clinic. A real clinic would confirm by phone.</p><button class="btn" type="button" onclick="location.reload()">Make another</button></div>`;
+    $('#doneBox').focus();
   });
-  const close = () => { $('#modal').hidden = true; };
-  $('#mClose').onclick = close;
-  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') close(); });
-  addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  $('#form').addEventListener('click', e => { const a = e.target.closest('.errs a'); if (!a) return; e.preventDefault(); const t = $(a.getAttribute('href')); if (t) (t.querySelector ? (t.querySelector('input') || t) : t).focus(); });
+
+  /* ---------- reveal ---------- */
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.1 });
+  $$('.reveal').forEach(el => io.observe(el));
 })();
